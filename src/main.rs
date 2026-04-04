@@ -7,6 +7,7 @@ mod types;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use clap_complete::Shell;
 use colored::Colorize;
 use types::RankingMode;
 
@@ -31,7 +32,7 @@ use crate::client::CerulClient;
                   Documentation: https://cerul.ai/docs\n\
                   Dashboard:     https://cerul.ai/dashboard"
 )]
-struct Cli {
+pub struct Cli {
     #[command(subcommand)]
     command: Commands,
 }
@@ -48,6 +49,10 @@ enum Commands {
     Usage(UsageArgs),
     /// Configure default settings (images, max_results, ranking_mode, etc.)
     Config(ConfigArgs),
+    /// View recent search history
+    History(HistoryArgs),
+    /// Generate shell completions (bash, zsh, fish, powershell)
+    Completions(CompletionsArgs),
     /// Update cerul to the latest version
     Upgrade,
 }
@@ -118,6 +123,19 @@ pub enum ConfigAction {
     },
     /// Reset all settings to defaults
     Reset,
+}
+
+#[derive(clap::Args, Debug, Clone)]
+pub struct HistoryArgs {
+    /// Number of recent searches to show
+    #[arg(long, default_value_t = 20)]
+    pub limit: usize,
+}
+
+#[derive(clap::Args, Debug, Clone)]
+pub struct CompletionsArgs {
+    /// Shell to generate completions for
+    pub shell: Shell,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -193,6 +211,8 @@ async fn run() -> Result<()> {
             Some(ConfigAction::Set { key, value }) => commands::config::run_set(&key, &value)?,
             Some(ConfigAction::Reset) => commands::config::run_reset()?,
         },
+        Commands::History(args) => commands::history::run(args.limit)?,
+        Commands::Completions(args) => commands::completions::run(args.shell)?,
         Commands::Upgrade => commands::upgrade::run().await?,
     }
 
