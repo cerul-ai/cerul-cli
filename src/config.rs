@@ -72,7 +72,7 @@ fn read_saved_key() -> Option<String> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserConfig {
-    #[serde(default = "default_false")]
+    #[serde(default = "default_true")]
     pub images: bool,
     #[serde(default = "default_max_results")]
     pub max_results: u32,
@@ -85,6 +85,9 @@ pub struct UserConfig {
 fn default_false() -> bool {
     false
 }
+fn default_true() -> bool {
+    true
+}
 fn default_max_results() -> u32 {
     5
 }
@@ -95,7 +98,7 @@ fn default_ranking_mode() -> String {
 impl Default for UserConfig {
     fn default() -> Self {
         Self {
-            images: false,
+            images: true,
             max_results: 5,
             ranking_mode: "embedding".to_string(),
             include_answer: false,
