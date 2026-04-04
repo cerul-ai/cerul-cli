@@ -1,7 +1,7 @@
 <div align="center">
   <h1>cerul</h1>
   <p><strong>The video search layer for AI agents — CLI.</strong></p>
-  <p>Search what was said, shown, or presented in any video. From your terminal.</p>
+  <p>Give any AI agent the ability to search video. Works with Claude Code, Codex, Cursor, and any tool that can run shell commands.</p>
 
   <p>
     <a href="https://cerul.ai/docs"><strong>Docs</strong></a> &middot;
@@ -18,110 +18,88 @@
 
 <br />
 
+<div align="center">
+  <img src="./cli.png" alt="cerul search results with inline video frames" width="720" />
+</div>
+
+<br />
+
 ## Install
 
 ```bash
-# macOS / Linux
 curl -fsSL https://raw.githubusercontent.com/cerul-ai/cerul-cli/main/install.sh | bash
-
-# Homebrew
-brew tap cerul-ai/tap && brew install cerul
-
-# Self-update
-cerul upgrade
 ```
 
 ## Quick Start
 
 ```bash
-cerul login                                   # authenticate
-cerul search "Sam Altman on AGI timeline"     # search videos
-cerul usage                                   # check credits
+cerul login                                 # authenticate (opens browser)
+cerul search "Sam Altman on AGI timeline"   # search videos
+cerul usage                                 # check credits
 ```
 
-## What It Does
+Get a free API key at [cerul.ai/dashboard](https://cerul.ai/dashboard).
 
-Cerul indexes tech talks, podcasts, conference presentations, and earnings calls. The CLI lets you search across all of them by meaning — speech, visuals, slides, and on-screen text.
+## Why a CLI?
 
-```
-$ cerul search "transformer attention explained"
+AI coding agents (Claude Code, Codex, Cursor, Cline) can run shell commands. Give them access to `cerul search` and they can find evidence from video — who said what, when, in which talk.
 
-  🔍 5 results  ·  free daily search  ·  7,550 credits remaining
+```bash
+# An agent can run this directly
+cerul search "Jensen Huang on AI infrastructure" --json
 
-  ┌─ [1]  Attention Is All You Need — Paper Explained
-  │  📊 92% match  ·  🕐 14:32 → 16:45  ·  🎤 Yannic Kilcher
-  │
-  │  "So the key insight of attention is that instead of compressing
-  │   the entire input into a fixed-size vector, we allow the decoder
-  │   to look back at all encoder hidden states..."
-  │
-  │  🔗 https://cerul.ai/v/a8f3k2x
-  └─
+# Or as part of a multi-step research workflow
+cerul search "scaling laws explained" --speaker "Ilya Sutskever" --json
+cerul search "scaling laws criticism" --json
 ```
 
-## Commands
+Use `--json` for structured output that agents can parse. Without `--json`, results are formatted for humans with inline video frames, clickable links, and color.
+
+## Search Options
+
+```bash
+cerul search "query"                          # basic search
+cerul search "query" --max-results 10         # more results (1-50)
+cerul search "query" --ranking-mode rerank    # LLM reranking
+cerul search "query" --include-answer         # AI summary (2 credits)
+cerul search "query" --speaker "Sam Altman"   # filter by speaker
+cerul search "query" --published-after 2025-01-01
+cerul search "query" --source youtube
+cerul search "query" --json                   # raw JSON for scripts/agents
+```
+
+## All Commands
 
 | Command | Description |
 |---------|-------------|
 | `cerul search <query>` | Search indexed videos |
-| `cerul usage` | Check credit balance and rate limits |
-| `cerul login` | Authenticate with your API key |
-| `cerul logout` | Remove saved API key |
-| `cerul config` | Configure defaults (arrow keys to navigate) |
-| `cerul history` | View recent searches |
-| `cerul upgrade` | Update to latest version |
-| `cerul completions <shell>` | Generate shell completions (bash/zsh/fish) |
+| `cerul usage` | Check credits and rate limits |
+| `cerul login` / `logout` | Authenticate |
+| `cerul config` | Interactive settings (↑↓←→ to navigate) |
+| `cerul history` | Browse and re-run past searches |
+| `cerul upgrade` | Self-update to latest version |
+| `cerul completions <shell>` | Shell completions (bash/zsh/fish) |
 
-## Search Options
+## Agent Integration
 
-| Flag | Description |
-|------|-------------|
-| `--max-results N` | Number of results (1-50, default 5) |
-| `--ranking-mode MODE` | `embedding` (default) or `rerank` |
-| `--include-answer` | Include AI summary (2 credits) |
-| `--speaker NAME` | Filter by speaker |
-| `--published-after DATE` | Filter by date (YYYY-MM-DD) |
-| `--source SOURCE` | Filter by source (e.g. youtube) |
-| `--json` | Output raw JSON for scripts and agents |
-
-## Configuration
-
-`cerul config` opens an interactive settings editor:
+Add this to your agent's skill or system prompt:
 
 ```
-  ⚙️  Cerul Configuration
-  ↑↓ navigate  ←→ change  Enter save  Esc quit
+When the user asks about video content, talks, or what someone said
+in a presentation, use the cerul CLI:
 
-> Images in results      ◀ off ▶
-  Default max results    5
-  Default ranking mode   embedding
-  Include AI answer      off
+  cerul search "<query>" --json
 
-    Save and exit
+Parse the JSON results and cite sources with timestamps and URLs.
 ```
 
-Settings persist to `~/.config/cerul/config.toml`. CLI flags always override config.
+Or use the [Cerul SKILL.md](https://github.com/cerul-ai/cerul/tree/main/skills/cerul) for automatic agent integration.
 
-## Shell Completions
+## Links
 
-```bash
-# zsh
-cerul completions zsh > ~/.zfunc/_cerul
-
-# bash
-cerul completions bash > /etc/bash_completion.d/cerul
-
-# fish
-cerul completions fish > ~/.config/fish/completions/cerul.fish
-```
-
-## Ecosystem
-
-| Package | Description |
-|---------|-------------|
-| [`cerul`](https://github.com/cerul-ai/cerul) | Main repo — API, docs, skills, remote MCP |
-| [`cerul`](https://www.npmjs.com/package/cerul) | TypeScript SDK |
-| [`cerul`](https://pypi.org/project/cerul/) | Python SDK |
+- [Python SDK](https://pypi.org/project/cerul/) — `pip install cerul`
+- [TypeScript SDK](https://www.npmjs.com/package/cerul) — `npm install cerul`
+- [Main repo](https://github.com/cerul-ai/cerul) — API, docs, skills, remote MCP
 
 ## License
 
