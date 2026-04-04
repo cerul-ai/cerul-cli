@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use colored::Colorize;
+use dialoguer::{Confirm, Input, Select};
 
 use crate::config::{self, UserConfig};
 
@@ -10,51 +11,83 @@ pub fn run_interactive() -> Result<()> {
     eprintln!("  {}", "⚙️  Cerul Configuration".bold());
     eprintln!();
 
-    // Images
-    let current_images = if cfg.images { "on" } else { "off" };
-    let input = config::read_line(&format!(
-        "  Images in results  [{}] (on/off): ",
-        current_images.dimmed()
-    ))?;
-    if !input.is_empty() {
-        cfg.images = matches!(input.to_lowercase().as_str(), "on" | "true" | "yes" | "1");
-    }
+    loop {
+        let items = vec![
+            format!(
+                "Images in results     {}",
+                if cfg.images {
+                    "on".green().to_string()
+                } else {
+                    "off".dimmed().to_string()
+                }
+            ),
+            format!(
+                "Default max results   {}",
+                cfg.max_results.to_string().bold()
+            ),
+            format!(
+                "Default ranking mode  {}",
+                cfg.ranking_mode.bold()
+            ),
+            format!(
+                "Include AI answer     {}",
+                if cfg.include_answer {
+                    "on".green().to_string()
+                } else {
+                    "off".dimmed().to_string()
+                }
+            ),
+            "Save and exit".green().bold().to_string(),
+        ];
 
-    // Max results
-    let input = config::read_line(&format!(
-        "  Default max results [{}] (1-50): ",
-        cfg.max_results.to_string().dimmed()
-    ))?;
-    if !input.is_empty() {
-        if let Ok(n) = input.parse::<u32>() {
-            if (1..=50).contains(&n) {
-                cfg.max_results = n;
-            } else {
-                eprintln!("  {}", "Invalid: must be 1-50, keeping current value.".yellow());
+        let selection = Select::new()
+            .with_prompt("  Select an option to change")
+            .items(&items)
+            .default(0)
+            .interact()?;
+
+        match selection {
+            0 => {
+                cfg.images = Confirm::new()
+                    .with_prompt("  Show images in search results? (requires iTerm2/Kitty/WezTerm)")
+                    .default(cfg.images)
+                    .interact()?;
             }
+            1 => {
+                let value: u32 = Input::new()
+                    .with_prompt("  Default max results (1-50)")
+                    .default(cfg.max_results)
+                    .validate_with(|input: &u32| {
+                        if (1..=50).contains(input) {
+                            Ok(())
+                        } else {
+                            Err("Must be between 1 and 50")
+                        }
+                    })
+                    .interact_text()?;
+                cfg.max_results = value;
+            }
+            2 => {
+                let modes = vec!["embedding", "rerank"];
+                let current = if cfg.ranking_mode == "rerank" { 1 } else { 0 };
+                let choice = Select::new()
+                    .with_prompt("  Default ranking mode")
+                    .items(&modes)
+                    .default(current)
+                    .interact()?;
+                cfg.ranking_mode = modes[choice].to_string();
+            }
+            3 => {
+                cfg.include_answer = Confirm::new()
+                    .with_prompt("  Include AI answer by default? (costs 2 credits per search)")
+                    .default(cfg.include_answer)
+                    .interact()?;
+            }
+            4 => break,
+            _ => break,
         }
-    }
 
-    // Ranking mode
-    let input = config::read_line(&format!(
-        "  Default ranking mode [{}] (embedding/rerank): ",
-        cfg.ranking_mode.dimmed()
-    ))?;
-    if !input.is_empty() {
-        match input.to_lowercase().as_str() {
-            "embedding" | "rerank" => cfg.ranking_mode = input.to_lowercase(),
-            _ => eprintln!("  {}", "Invalid: must be embedding or rerank, keeping current value.".yellow()),
-        }
-    }
-
-    // Include answer
-    let current_answer = if cfg.include_answer { "on" } else { "off" };
-    let input = config::read_line(&format!(
-        "  Include AI answer  [{}] (on/off, costs 2 credits): ",
-        current_answer.dimmed()
-    ))?;
-    if !input.is_empty() {
-        cfg.include_answer = matches!(input.to_lowercase().as_str(), "on" | "true" | "yes" | "1");
+        eprintln!();
     }
 
     config::save_config(&cfg)?;
@@ -81,7 +114,11 @@ pub fn run_list() -> Result<()> {
     eprintln!(
         "  {:<18}{}",
         "images".dimmed(),
-        if cfg.images { "on".green().to_string() } else { "off".to_string() }
+        if cfg.images {
+            "on".green().to_string()
+        } else {
+            "off".to_string()
+        }
     );
     eprintln!(
         "  {:<18}{}",
@@ -96,7 +133,11 @@ pub fn run_list() -> Result<()> {
     eprintln!(
         "  {:<18}{}",
         "include_answer".dimmed(),
-        if cfg.include_answer { "on".green().to_string() } else { "off".to_string() }
+        if cfg.include_answer {
+            "on".green().to_string()
+        } else {
+            "off".to_string()
+        }
     );
     eprintln!();
     eprintln!("  File: {}", path.display().to_string().dimmed());
@@ -110,10 +151,12 @@ pub fn run_set(key: &str, value: &str) -> Result<()> {
 
     match key {
         "images" => {
-            cfg.images = matches!(value.to_lowercase().as_str(), "on" | "true" | "yes" | "1");
+            cfg.images = parse_bool(value);
         }
         "max_results" | "max-results" => {
-            let n: u32 = value.parse().map_err(|_| anyhow::anyhow!("Invalid number"))?;
+            let n: u32 = value
+                .parse()
+                .map_err(|_| anyhow::anyhow!("Invalid number"))?;
             if !(1..=50).contains(&n) {
                 bail!("max_results must be between 1 and 50");
             }
@@ -126,7 +169,7 @@ pub fn run_set(key: &str, value: &str) -> Result<()> {
             cfg.ranking_mode = value.to_string();
         }
         "include_answer" | "include-answer" => {
-            cfg.include_answer = matches!(value.to_lowercase().as_str(), "on" | "true" | "yes" | "1");
+            cfg.include_answer = parse_bool(value);
         }
         _ => bail!(
             "Unknown config key: {key}\n\nValid keys: images, max_results, ranking_mode, include_answer"
@@ -146,4 +189,11 @@ pub fn run_reset() -> Result<()> {
     eprintln!("  {} Configuration reset to defaults.", "✅".green());
     eprintln!();
     Ok(())
+}
+
+fn parse_bool(value: &str) -> bool {
+    matches!(
+        value.to_lowercase().as_str(),
+        "on" | "true" | "yes" | "1"
+    )
 }
