@@ -17,6 +17,7 @@ use crate::client::CerulClient;
 #[command(
     name = "cerul",
     version,
+    disable_version_flag = true,
     about = "Search video knowledge from your terminal",
     long_about = "Cerul CLI — search what was said, shown, or presented in tech talks,\n\
                   podcasts, conference presentations, and earnings calls.\n\n\
@@ -33,8 +34,12 @@ use crate::client::CerulClient;
                   Dashboard:     https://cerul.ai/dashboard"
 )]
 pub struct Cli {
+    /// Print version
+    #[arg(short = 'v', short_alias = 'V', long = "version", global = true)]
+    version: bool,
+
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -146,7 +151,14 @@ async fn main() {
         return;
     }
 
-    if let Err(err) = run().await {
+    let cli = Cli::parse();
+
+    if cli.version {
+        println!("cerul {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
+
+    if let Err(err) = run(cli).await {
         error::exit_with_error(&err);
     }
 }
@@ -178,11 +190,14 @@ fn print_welcome() {
     eprintln!();
 }
 
-async fn run() -> Result<()> {
-    let cli = Cli::parse();
+async fn run(cli: Cli) -> Result<()> {
+    let Some(command) = cli.command else {
+        print_welcome();
+        return Ok(());
+    };
 
     // Check for updates on non-upgrade commands (non-blocking, cached 24h)
-    let is_upgrade = matches!(cli.command, Commands::Upgrade);
+    let is_upgrade = matches!(command, Commands::Upgrade);
     if !is_upgrade {
         if let Some(latest) = commands::upgrade::check_update_background().await {
             eprintln!(
@@ -194,7 +209,7 @@ async fn run() -> Result<()> {
         }
     }
 
-    match cli.command {
+    match command {
         Commands::Login(args) => commands::login::run(args.api_key).await?,
         Commands::Logout => commands::login::run_logout()?,
         Commands::Search(args) => {
