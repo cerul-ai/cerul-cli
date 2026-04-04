@@ -1,9 +1,10 @@
-use std::{env, time::Duration};
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use serde::de::DeserializeOwned;
 
+use crate::config;
 use crate::types::{ErrorResponse, SearchRequest, SearchResponse, UsageResponse};
 
 const BASE_URL: &str = "https://api.cerul.ai";
@@ -15,16 +16,23 @@ pub struct CerulClient {
 }
 
 impl CerulClient {
-    pub fn from_env() -> Result<Self> {
-        let api_key = env::var("CERUL_API_KEY").context(
-            "CERUL_API_KEY is not set.\n\nGet your API key at https://cerul.ai/dashboard\nThen run: export CERUL_API_KEY=cerul_sk_...",
-        )?;
+    /// Build client from saved config or env var. Fails if no key found.
+    pub fn from_config() -> Result<Self> {
+        let api_key = config::require_api_key()?;
+        Self::build(api_key)
+    }
 
+    /// Build client with an explicit API key (for `cerul login` verification).
+    pub fn with_key(api_key: String) -> Result<Self> {
+        Self::build(api_key)
+    }
+
+    fn build(api_key: String) -> Result<Self> {
         let http = reqwest::Client::builder()
             .user_agent(format!("cerul-cli/{}", env!("CARGO_PKG_VERSION")))
             .timeout(Duration::from_secs(30))
             .build()
-            .context("Failed to build Cerul HTTP client")?;
+            .context("Failed to build HTTP client")?;
 
         Ok(Self { http, api_key })
     }
@@ -60,7 +68,7 @@ impl CerulClient {
         let response = request
             .send()
             .await
-            .context("Failed to send request to Cerul API")?;
+            .context("Failed to connect to Cerul API")?;
 
         let status = response.status();
         let request_id = response
@@ -71,7 +79,7 @@ impl CerulClient {
         let body = response
             .bytes()
             .await
-            .context("Failed to read response body from Cerul API")?;
+            .context("Failed to read response body")?;
 
         if !status.is_success() {
             return Err(build_api_error(
@@ -81,7 +89,7 @@ impl CerulClient {
             ));
         }
 
-        serde_json::from_slice::<T>(&body).context("Failed to parse Cerul API response")
+        serde_json::from_slice::<T>(&body).context("Failed to parse API response")
     }
 }
 
@@ -91,25 +99,20 @@ fn build_api_error(status: u16, request_id: Option<&str>, body: &[u8]) -> anyhow
             "[{status}] {}: {}",
             payload.error.code, payload.error.message
         );
-        if let Some(request_id) = request_id {
-            message.push_str(&format!(" (request_id: {request_id})"));
+        if let Some(rid) = request_id {
+            message.push_str(&format!(" (request_id: {rid})"));
         }
         return anyhow::anyhow!(message);
     }
 
     let fallback = String::from_utf8_lossy(body).trim().to_string();
+    let rid_suffix = request_id
+        .map(|rid| format!(" (request_id: {rid})"))
+        .unwrap_or_default();
+
     if fallback.is_empty() {
-        if let Some(request_id) = request_id {
-            return anyhow::anyhow!(
-                "[{status}] api_error: Request failed (request_id: {request_id})"
-            );
-        }
-        return anyhow::anyhow!("[{status}] api_error: Request failed");
+        anyhow::anyhow!("[{status}] api_error: Request failed{rid_suffix}")
+    } else {
+        anyhow::anyhow!("[{status}] api_error: {fallback}{rid_suffix}")
     }
-
-    if let Some(request_id) = request_id {
-        return anyhow::anyhow!("[{status}] api_error: {fallback} (request_id: {request_id})");
-    }
-
-    anyhow::anyhow!("[{status}] api_error: {fallback}")
 }
