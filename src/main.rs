@@ -191,10 +191,13 @@ const EXAMPLE_QUERIES: &[&str] = &[
 
 fn pick_example_query() -> &'static str {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let seed = SystemTime::now()
+    let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
-        .as_nanos() as usize;
+        .as_nanos();
+    // Mix bits for better distribution: XOR high and low, add PID
+    let pid = std::process::id() as u128;
+    let seed = ((nanos ^ (nanos >> 17)).wrapping_add(pid)) as usize;
     EXAMPLE_QUERIES[seed % EXAMPLE_QUERIES.len()]
 }
 
