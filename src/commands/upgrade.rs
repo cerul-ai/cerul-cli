@@ -116,11 +116,13 @@ async fn fetch_latest_version() -> Result<String> {
     // GitHub redirects /releases/latest to /releases/tag/vX.Y.Z
     // We follow the redirect and parse the version from the final URL.
     let url = format!("https://github.com/{REPO}/releases/latest");
-    let resp = client
-        .get(&url)
-        .send()
-        .await
-        .context("Failed to check for updates")?;
+    let resp = client.get(&url).send().await.with_context(|| {
+        format!(
+            "Cannot reach GitHub. Check your network connection.\n\n\
+             To upgrade manually, download from:\n  \
+             https://github.com/{REPO}/releases/latest"
+        )
+    })?;
 
     // The final URL after redirect contains the tag
     let final_url = resp.url().as_str();
@@ -135,7 +137,9 @@ async fn fetch_latest_version() -> Result<String> {
 
 async fn download_url(url: &str) -> Result<Vec<u8>> {
     let client = build_http_client(120)?;
-    let resp = client.get(url).send().await.context("Failed to download")?;
+    let resp = client.get(url).send().await.with_context(|| {
+        format!("Download failed. Check your network connection.\n\n  Manual download: {url}")
+    })?;
     if !resp.status().is_success() {
         bail!("Download failed: HTTP {}", resp.status());
     }
