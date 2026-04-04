@@ -7,6 +7,9 @@ use serde::Serialize;
 use crate::types::{SearchResponse, UsageResponse};
 
 pub fn print_search_human(response: &SearchResponse, show_images: bool) {
+    let caps = detect_term_caps();
+    let effective_images = show_images && caps.inline_images;
+
     let credit_note = if response.credits_used == 0 {
         "free daily search".green().to_string()
     } else {
@@ -51,8 +54,8 @@ pub fn print_search_human(response: &SearchResponse, show_images: bool) {
         }
         eprintln!("  │  {}", meta.join("  ·  ").dimmed());
 
-        // Inline image (iTerm2 / Kitty protocol)
-        if show_images {
+        // Inline image (iTerm2 / Kitty protocol — only if terminal supports it)
+        if effective_images {
             if let Some(url) = result.keyframe_url.as_deref().or(result.thumbnail_url.as_deref()) {
                 eprintln!("  │");
                 if let Some(img_data) = fetch_image_bytes(url) {
@@ -72,9 +75,9 @@ pub fn print_search_human(response: &SearchResponse, show_images: bool) {
             eprintln!("  │  {line}");
         }
 
-        // URL (OSC 8 clickable link with fallback)
+        // URL
         eprintln!("  │");
-        eprintln!("  │  🔗 {}", osc8_link(&result.url, "Open video").dimmed());
+        eprintln!("  │  🔗 {}", format_url(&result.url, &caps));
 
         // Bottom border
         eprintln!("  └─");
@@ -211,25 +214,62 @@ fn format_number(value: u64) -> String {
     formatted.chars().rev().collect()
 }
 
-/// OSC 8 hyperlink: makes text clickable in supported terminals.
-/// Falls back to showing the URL as plain text in unsupported terminals.
-fn osc8_link(url: &str, label: &str) -> String {
-    if is_terminal_interactive() {
-        // OSC 8 format: \x1b]8;;URL\x1b\\LABEL\x1b]8;;\x1b\\
-        format!("\x1b]8;;{url}\x1b\\{label}\x1b]8;;\x1b\\  {url}")
+// ── Terminal capability detection ────────────────────────────────────
+
+#[derive(Debug, Clone, Copy)]
+struct TermCaps {
+    osc8_links: bool,
+    inline_images: bool,
+}
+
+fn detect_term_caps() -> TermCaps {
+    if !std::io::stderr().is_terminal() {
+        return TermCaps {
+            osc8_links: false,
+            inline_images: false,
+        };
+    }
+
+    let term_program = std::env::var("TERM_PROGRAM").unwrap_or_default();
+    match term_program.as_str() {
+        "iTerm.app" => TermCaps {
+            osc8_links: true,
+            inline_images: true,
+        },
+        "WezTerm" => TermCaps {
+            osc8_links: true,
+            inline_images: true,
+        },
+        "kitty" => TermCaps {
+            osc8_links: true,
+            inline_images: true, // kitty uses its own protocol but iTerm2 compat works
+        },
+        "vscode" => TermCaps {
+            osc8_links: true,
+            inline_images: false,
+        },
+        _ => TermCaps {
+            osc8_links: false,
+            inline_images: false,
+        },
+    }
+}
+
+/// Format URL: clickable OSC 8 link in supported terminals, plain URL otherwise.
+fn format_url(url: &str, caps: &TermCaps) -> String {
+    if caps.osc8_links {
+        // OSC 8: \x1b]8;;URL\x1b\\LABEL\x1b]8;;\x1b\\
+        format!(
+            "\x1b]8;;{url}\x1b\\▶ Open video\x1b]8;;\x1b\\  {}",
+            url.dimmed()
+        )
     } else {
         url.to_string()
     }
 }
 
-fn is_terminal_interactive() -> bool {
-    std::io::stderr().is_terminal()
-}
-
-/// Download image bytes. Returns None on any failure (non-blocking to UX).
+/// Download image bytes. Returns None on any failure (5s timeout).
 fn fetch_image_bytes(url: &str) -> Option<Vec<u8>> {
-    // Use a blocking reqwest call since we're already in an output function.
-    // Short timeout to avoid slowing down results.
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()
@@ -241,12 +281,10 @@ fn fetch_image_bytes(url: &str) -> Option<Vec<u8>> {
     resp.bytes().ok().map(|b| b.to_vec())
 }
 
-/// Print an inline image using the iTerm2 Inline Images Protocol.
-/// Falls back to nothing on unsupported terminals (the escape is simply ignored).
+/// Print inline image using iTerm2 Inline Images Protocol.
 fn print_inline_image(data: &[u8]) {
     use base64::{engine::general_purpose::STANDARD, Engine};
     let encoded = STANDARD.encode(data);
-    // iTerm2 protocol: \x1b]1337;File=inline=1;width=40;preserveAspectRatio=1:<base64>\x07
     eprint!(
         "  │  \x1b]1337;File=inline=1;width=40;preserveAspectRatio=1:{}\x07",
         encoded

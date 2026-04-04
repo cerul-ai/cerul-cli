@@ -102,6 +102,26 @@ pub fn run_interactive() -> Result<()> {
         "✅".green(),
         path.display().to_string().dimmed()
     );
+
+    // Warn if images enabled but terminal doesn't support it
+    if new_cfg.images {
+        let term = std::env::var("TERM_PROGRAM").unwrap_or_default();
+        let supported = matches!(term.as_str(), "iTerm.app" | "WezTerm" | "kitty");
+        if !supported {
+            eprintln!();
+            eprintln!(
+                "  {} Images enabled but your terminal ({}) may not support inline images.",
+                "⚠️".yellow(),
+                if term.is_empty() {
+                    "unknown".to_string()
+                } else {
+                    term
+                }
+            );
+            eprintln!("  Supported: iTerm2, WezTerm, Kitty. Images will be skipped in other terminals.");
+        }
+    }
+
     eprintln!();
 
     Ok(())
