@@ -1,10 +1,12 @@
+use std::io::IsTerminal;
+
 use anyhow::{Context, Result};
 use colored::Colorize;
 use serde::Serialize;
 
 use crate::types::{SearchResponse, UsageResponse};
 
-pub fn print_search_human(response: &SearchResponse, _show_images: bool) {
+pub fn print_search_human(response: &SearchResponse, show_images: bool) {
     let credit_note = if response.credits_used == 0 {
         "free daily search".green().to_string()
     } else {
@@ -48,6 +50,16 @@ pub fn print_search_human(response: &SearchResponse, _show_images: bool) {
             meta.push(format!("🎤 {speaker}"));
         }
         eprintln!("  │  {}", meta.join("  ·  ").dimmed());
+
+        // Inline image (iTerm2 / Kitty protocol)
+        if show_images {
+            if let Some(url) = result.keyframe_url.as_deref().or(result.thumbnail_url.as_deref()) {
+                eprintln!("  │");
+                if let Some(img_data) = fetch_image_bytes(url) {
+                    print_inline_image(&img_data);
+                }
+            }
+        }
 
         // Transcript / snippet
         let text = result
@@ -211,6 +223,33 @@ fn osc8_link(url: &str, label: &str) -> String {
 }
 
 fn is_terminal_interactive() -> bool {
-    use std::io::IsTerminal;
     std::io::stderr().is_terminal()
+}
+
+/// Download image bytes. Returns None on any failure (non-blocking to UX).
+fn fetch_image_bytes(url: &str) -> Option<Vec<u8>> {
+    // Use a blocking reqwest call since we're already in an output function.
+    // Short timeout to avoid slowing down results.
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .ok()?;
+    let resp = client.get(url).send().ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    resp.bytes().ok().map(|b| b.to_vec())
+}
+
+/// Print an inline image using the iTerm2 Inline Images Protocol.
+/// Falls back to nothing on unsupported terminals (the escape is simply ignored).
+fn print_inline_image(data: &[u8]) {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let encoded = STANDARD.encode(data);
+    // iTerm2 protocol: \x1b]1337;File=inline=1;width=40;preserveAspectRatio=1:<base64>\x07
+    eprint!(
+        "  │  \x1b]1337;File=inline=1;width=40;preserveAspectRatio=1:{}\x07",
+        encoded
+    );
+    eprintln!();
 }

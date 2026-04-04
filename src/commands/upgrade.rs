@@ -81,7 +81,7 @@ pub async fn check_update_background() -> Option<String> {
             if modified.elapsed().unwrap_or_default().as_secs() < 86400 {
                 let cached = std::fs::read_to_string(&cache_path).ok()?;
                 let latest = cached.trim().to_string();
-                if !latest.is_empty() && latest != CURRENT_VERSION {
+                if !latest.is_empty() && is_newer(&latest, CURRENT_VERSION) {
                     return Some(latest);
                 }
                 return None;
@@ -97,7 +97,7 @@ pub async fn check_update_background() -> Option<String> {
         std::fs::write(dir.join("last_update_check"), &latest).ok();
     }
 
-    if latest != CURRENT_VERSION {
+    if is_newer(&latest, CURRENT_VERSION) {
         Some(latest)
     } else {
         None
@@ -200,6 +200,19 @@ fn extract_tar_entry(tar_data: &[u8], entry_name: &str) -> Result<Vec<u8>> {
         }
     }
     bail!("Binary '{entry_name}' not found in archive");
+}
+
+/// Compare semver strings: is `latest` strictly newer than `current`?
+fn is_newer(latest: &str, current: &str) -> bool {
+    let parse = |s: &str| -> (u64, u64, u64) {
+        let parts: Vec<u64> = s.split('.').filter_map(|p| p.parse().ok()).collect();
+        (
+            parts.first().copied().unwrap_or(0),
+            parts.get(1).copied().unwrap_or(0),
+            parts.get(2).copied().unwrap_or(0),
+        )
+    };
+    parse(latest) > parse(current)
 }
 
 fn cache_dir() -> Result<std::path::PathBuf> {
