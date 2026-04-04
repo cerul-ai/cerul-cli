@@ -1,5 +1,6 @@
 mod client;
 mod commands;
+mod config;
 mod error;
 mod output;
 mod types;
@@ -14,7 +15,20 @@ use crate::client::CerulClient;
 #[command(
     name = "cerul",
     version,
-    about = "Search video knowledge from your terminal"
+    about = "Search video knowledge from your terminal",
+    long_about = "Cerul CLI — search what was said, shown, or presented in tech talks,\n\
+                  podcasts, conference presentations, and earnings calls.\n\n\
+                  Get started:\n\
+                  \x20 cerul login                           Authenticate with your API key\n\
+                  \x20 cerul search \"sam altman agi\"          Search indexed videos\n\
+                  \x20 cerul usage                            Check your credit balance",
+    after_help = "Examples:\n\
+                  \x20 cerul search \"attention mechanism explained\"\n\
+                  \x20 cerul search \"jensen huang\" --speaker \"Jensen Huang\" --max-results 10\n\
+                  \x20 cerul search \"AI safety\" --ranking-mode rerank --include-answer\n\
+                  \x20 cerul search \"scaling laws\" --published-after 2025-01-01 --json\n\n\
+                  Documentation: https://cerul.ai/docs\n\
+                  Dashboard:     https://cerul.ai/dashboard"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -23,10 +37,21 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// Authenticate with your Cerul API key
+    Login(LoginArgs),
+    /// Remove saved API key
+    Logout,
     /// Search indexed videos for speech, visual content, and on-screen text
     Search(SearchArgs),
     /// Check credit balance, billing period, and rate limits
     Usage(UsageArgs),
+}
+
+#[derive(clap::Args, Debug, Clone)]
+pub struct LoginArgs {
+    /// API key to save (skip interactive prompt)
+    #[arg(long)]
+    pub api_key: Option<String>,
 }
 
 #[derive(clap::Args, Debug, Clone)]
@@ -78,11 +103,18 @@ async fn main() {
 
 async fn run() -> Result<()> {
     let cli = Cli::parse();
-    let client = CerulClient::from_env()?;
 
     match cli.command {
-        Commands::Search(args) => commands::search::run(&client, args).await?,
-        Commands::Usage(args) => commands::usage::run(&client, args).await?,
+        Commands::Login(args) => commands::login::run(args.api_key).await?,
+        Commands::Logout => commands::login::run_logout()?,
+        Commands::Search(args) => {
+            let client = CerulClient::from_config()?;
+            commands::search::run(&client, args).await?;
+        }
+        Commands::Usage(args) => {
+            let client = CerulClient::from_config()?;
+            commands::usage::run(&client, args).await?;
+        }
     }
 
     Ok(())
