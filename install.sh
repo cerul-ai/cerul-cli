@@ -20,10 +20,11 @@ case "$ARCH" in
   *)              echo "Error: Unsupported architecture: $ARCH" >&2; exit 1 ;;
 esac
 
-# Get latest release tag
-LATEST=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name"' | head -1 | sed 's/.*"v//' | sed 's/".*//')
+# Get latest release tag (use redirect URL, no API auth needed)
+LATEST=$(curl -fsSI "https://github.com/$REPO/releases/latest" 2>/dev/null | grep -i '^location:' | sed 's|.*/v||' | tr -d '\r')
 if [ -z "$LATEST" ]; then
   echo "Error: Could not determine latest release." >&2
+  echo "Check https://github.com/$REPO/releases manually." >&2
   exit 1
 fi
 
