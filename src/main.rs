@@ -18,8 +18,9 @@ use crate::client::CerulClient;
     name = "cerul",
     version,
     disable_version_flag = true,
-    about = "Search video knowledge from your terminal",
-    long_about = "Cerul CLI — search what was said, shown, or presented in tech talks,\n\
+    about = "The video search layer for AI agents",
+    long_about = "Cerul CLI — teach your AI agents to see.\n\
+                  Search what was said, shown, or presented in tech talks,\n\
                   podcasts, conference presentations, and earnings calls.\n\n\
                   Get started:\n\
                   \x20 cerul login                           Authenticate with your API key\n\
@@ -169,8 +170,9 @@ fn print_welcome() {
     eprintln!(
         "  {} {}",
         "🔍 cerul".bold(),
-        format!("v{version} — video knowledge search").dimmed()
+        format!("v{version}").dimmed()
     );
+    eprintln!("  {}", "The video search layer for AI agents.".dimmed());
     eprintln!();
     eprintln!("  {}", "Quick start:".bold());
     eprintln!(
