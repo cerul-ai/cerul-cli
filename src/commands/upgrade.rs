@@ -5,41 +5,26 @@ use anyhow::{bail, Context, Result};
 const REPO: &str = "cerul-ai/cerul-cli";
 const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[derive(serde::Deserialize)]
-struct GitHubRelease {
-    tag_name: String,
-    assets: Vec<GitHubAsset>,
-}
-
-#[derive(serde::Deserialize)]
-struct GitHubAsset {
-    name: String,
-    browser_download_url: String,
-}
-
 pub async fn run() -> Result<()> {
     eprintln!("Current version: v{CURRENT_VERSION}");
-    eprint!("Checking for updates...");
+    eprint!("Checking for updates... ");
 
-    let release = fetch_latest_release().await?;
-    let latest = release.tag_name.trim_start_matches('v');
+    let latest = fetch_latest_version().await?;
 
     if latest == CURRENT_VERSION {
-        eprintln!(" up to date.");
+        eprintln!("already up to date.");
         return Ok(());
     }
 
-    eprintln!(" v{latest} available.\n");
+    eprintln!("v{latest} available.\n");
 
     let artifact_name = artifact_for_current_platform()?;
-    let asset = release
-        .assets
-        .iter()
-        .find(|a| a.name == artifact_name)
-        .with_context(|| format!("No binary found for this platform ({artifact_name})"))?;
+    let url = format!(
+        "https://github.com/{REPO}/releases/download/v{latest}/{artifact_name}"
+    );
 
     eprintln!("Downloading {artifact_name}...");
-    let bytes = download_asset(&asset.browser_download_url).await?;
+    let bytes = download_url(&url).await?;
 
     let current_exe = env::current_exe().context("Cannot determine current executable path")?;
 
@@ -76,19 +61,17 @@ pub async fn check_update_background() -> Option<String> {
     if let Ok(metadata) = std::fs::metadata(&cache_path) {
         if let Ok(modified) = metadata.modified() {
             if modified.elapsed().unwrap_or_default().as_secs() < 86400 {
-                // Read cached latest version
                 let cached = std::fs::read_to_string(&cache_path).ok()?;
-                let latest = cached.trim();
-                if latest != CURRENT_VERSION && !latest.is_empty() {
-                    return Some(latest.to_string());
+                let latest = cached.trim().to_string();
+                if !latest.is_empty() && latest != CURRENT_VERSION {
+                    return Some(latest);
                 }
                 return None;
             }
         }
     }
 
-    let release = fetch_latest_release().await.ok()?;
-    let latest = release.tag_name.trim_start_matches('v').to_string();
+    let latest = fetch_latest_version().await.ok()?;
 
     // Cache the result
     if let Ok(dir) = cache_dir() {
@@ -103,34 +86,49 @@ pub async fn check_update_background() -> Option<String> {
     }
 }
 
-async fn fetch_latest_release() -> Result<GitHubRelease> {
-    let client = reqwest::Client::builder()
-        .user_agent(format!("cerul-cli/{CURRENT_VERSION}"))
-        .timeout(std::time::Duration::from_secs(10))
-        .build()?;
+/// Get latest version by following the GitHub releases/latest redirect.
+/// Does NOT use the GitHub API (no rate limit).
+async fn fetch_latest_version() -> Result<String> {
+    let client = build_http_client(10)?;
 
-    let url = format!("https://api.github.com/repos/{REPO}/releases/latest");
-    let resp = client.get(&url).send().await.context("Failed to check for updates")?;
+    // GitHub redirects /releases/latest to /releases/tag/vX.Y.Z
+    // We follow the redirect and parse the version from the final URL.
+    let url = format!("https://github.com/{REPO}/releases/latest");
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .context("Failed to check for updates")?;
 
-    if !resp.status().is_success() {
-        bail!("GitHub API returned {}", resp.status());
-    }
+    // The final URL after redirect contains the tag
+    let final_url = resp.url().as_str();
+    let version = final_url
+        .rsplit("/v")
+        .next()
+        .filter(|v| !v.is_empty())
+        .context("Could not parse version from GitHub release URL")?;
 
-    resp.json().await.context("Failed to parse release info")
+    Ok(version.to_string())
 }
 
-async fn download_asset(url: &str) -> Result<Vec<u8>> {
-    let client = reqwest::Client::builder()
-        .user_agent(format!("cerul-cli/{CURRENT_VERSION}"))
-        .timeout(std::time::Duration::from_secs(120))
-        .build()?;
-
+async fn download_url(url: &str) -> Result<Vec<u8>> {
+    let client = build_http_client(120)?;
     let resp = client.get(url).send().await.context("Failed to download")?;
     if !resp.status().is_success() {
         bail!("Download failed: HTTP {}", resp.status());
     }
+    resp.bytes()
+        .await
+        .map(|b| b.to_vec())
+        .context("Failed to read download")
+}
 
-    resp.bytes().await.map(|b| b.to_vec()).context("Failed to read download")
+fn build_http_client(timeout_secs: u64) -> Result<reqwest::Client> {
+    reqwest::Client::builder()
+        .user_agent(format!("cerul-cli/{CURRENT_VERSION}"))
+        .timeout(std::time::Duration::from_secs(timeout_secs))
+        .build()
+        .context("Failed to build HTTP client")
 }
 
 fn artifact_for_current_platform() -> Result<String> {
@@ -163,7 +161,9 @@ fn flate2_decompress(gz_data: &[u8]) -> Result<Vec<u8>> {
     use std::io::Read;
     let mut decoder = flate2::read::GzDecoder::new(gz_data);
     let mut decompressed = Vec::new();
-    decoder.read_to_end(&mut decompressed).context("Failed to decompress")?;
+    decoder
+        .read_to_end(&mut decompressed)
+        .context("Failed to decompress")?;
     Ok(decompressed)
 }
 
@@ -175,7 +175,9 @@ fn extract_tar_entry(tar_data: &[u8], entry_name: &str) -> Result<Vec<u8>> {
         let path = entry.path().context("Failed to read entry path")?;
         if path.file_name().and_then(|n| n.to_str()) == Some(entry_name) {
             let mut buf = Vec::new();
-            entry.read_to_end(&mut buf).context("Failed to extract binary")?;
+            entry
+                .read_to_end(&mut buf)
+                .context("Failed to extract binary")?;
             return Ok(buf);
         }
     }
