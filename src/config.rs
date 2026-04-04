@@ -1,17 +1,19 @@
 use std::{env, fs, io, path::PathBuf};
 
 use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
 
 const CONFIG_DIR: &str = "cerul";
 const CREDENTIALS_FILE: &str = "credentials";
+const CONFIG_FILE: &str = "config.toml";
+
+// ── API Key ──────────────────────────────────────────────────────────
 
 /// Resolve API key: config file → env var → None
 pub fn resolve_api_key() -> Option<String> {
-    // 1. Config file
     if let Some(key) = read_saved_key() {
         return Some(key);
     }
-    // 2. Environment variable
     if let Ok(key) = env::var("CERUL_API_KEY") {
         if !key.is_empty() {
             return Some(key);
@@ -37,7 +39,6 @@ pub fn save_api_key(key: &str) -> Result<()> {
     let path = dir.join(CREDENTIALS_FILE);
     fs::write(&path, key).with_context(|| format!("Failed to write {}", path.display()))?;
 
-    // Restrict permissions on Unix
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -60,11 +61,76 @@ pub fn clear_api_key() -> Result<bool> {
 fn read_saved_key() -> Option<String> {
     let path = config_dir().ok()?.join(CREDENTIALS_FILE);
     let key = fs::read_to_string(path).ok()?.trim().to_string();
-    if key.is_empty() { None } else { Some(key) }
+    if key.is_empty() {
+        None
+    } else {
+        Some(key)
+    }
 }
 
+// ── User Preferences ────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserConfig {
+    #[serde(default = "default_false")]
+    pub images: bool,
+    #[serde(default = "default_max_results")]
+    pub max_results: u32,
+    #[serde(default = "default_ranking_mode")]
+    pub ranking_mode: String,
+    #[serde(default = "default_false")]
+    pub include_answer: bool,
+}
+
+fn default_false() -> bool {
+    false
+}
+fn default_max_results() -> u32 {
+    5
+}
+fn default_ranking_mode() -> String {
+    "embedding".to_string()
+}
+
+impl Default for UserConfig {
+    fn default() -> Self {
+        Self {
+            images: false,
+            max_results: 5,
+            ranking_mode: "embedding".to_string(),
+            include_answer: false,
+        }
+    }
+}
+
+pub fn load_config() -> UserConfig {
+    let path = match config_dir() {
+        Ok(dir) => dir.join(CONFIG_FILE),
+        Err(_) => return UserConfig::default(),
+    };
+    let content = match fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(_) => return UserConfig::default(),
+    };
+    toml::from_str(&content).unwrap_or_default()
+}
+
+pub fn save_config(config: &UserConfig) -> Result<()> {
+    let dir = config_dir()?;
+    fs::create_dir_all(&dir)?;
+    let path = dir.join(CONFIG_FILE);
+    let content = toml::to_string_pretty(config).context("Failed to serialize config")?;
+    fs::write(&path, content).with_context(|| format!("Failed to write {}", path.display()))?;
+    Ok(())
+}
+
+pub fn config_file_path() -> Result<PathBuf> {
+    Ok(config_dir()?.join(CONFIG_FILE))
+}
+
+// ── Shared ──────────────────────────────────────────────────────────
+
 fn config_dir() -> Result<PathBuf> {
-    // XDG on Linux, ~/Library/Application Support on macOS, AppData on Windows
     let base = if cfg!(target_os = "macos") {
         env::var("HOME")
             .map(|h| PathBuf::from(h).join(".config"))

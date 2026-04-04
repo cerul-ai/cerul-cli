@@ -4,7 +4,7 @@ use serde::Serialize;
 
 use crate::types::{SearchResponse, UsageResponse};
 
-pub fn print_search_human(response: &SearchResponse) {
+pub fn print_search_human(response: &SearchResponse, _show_images: bool) {
     let credit_note = if response.credits_used == 0 {
         "free daily search".green().to_string()
     } else {
@@ -60,9 +60,9 @@ pub fn print_search_human(response: &SearchResponse) {
             eprintln!("  │  {line}");
         }
 
-        // URL
+        // URL (OSC 8 clickable link with fallback)
         eprintln!("  │");
-        eprintln!("  │  {}", format!("🔗 {}", result.url).dimmed());
+        eprintln!("  │  🔗 {}", osc8_link(&result.url, "Open video").dimmed());
 
         // Bottom border
         eprintln!("  └─");
@@ -197,4 +197,20 @@ fn format_number(value: u64) -> String {
     }
 
     formatted.chars().rev().collect()
+}
+
+/// OSC 8 hyperlink: makes text clickable in supported terminals.
+/// Falls back to showing the URL as plain text in unsupported terminals.
+fn osc8_link(url: &str, label: &str) -> String {
+    if is_terminal_interactive() {
+        // OSC 8 format: \x1b]8;;URL\x1b\\LABEL\x1b]8;;\x1b\\
+        format!("\x1b]8;;{url}\x1b\\{label}\x1b]8;;\x1b\\  {url}")
+    } else {
+        url.to_string()
+    }
+}
+
+fn is_terminal_interactive() -> bool {
+    use std::io::IsTerminal;
+    std::io::stderr().is_terminal()
 }

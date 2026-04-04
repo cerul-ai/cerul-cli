@@ -2,8 +2,9 @@ use anyhow::{bail, Result};
 
 use crate::{
     client::CerulClient,
+    config,
     output,
-    types::{SearchFilters, SearchRequest},
+    types::{RankingMode, SearchFilters, SearchRequest},
     SearchArgs,
 };
 
@@ -28,12 +29,23 @@ pub async fn run(client: &CerulClient, args: SearchArgs) -> Result<()> {
         }
     }
 
+    // Merge: CLI flag > config > hardcoded default
+    let cfg = config::load_config();
+    let max_results = args.max_results.unwrap_or(cfg.max_results);
+    let ranking_mode = args.ranking_mode.unwrap_or_else(|| {
+        match cfg.ranking_mode.as_str() {
+            "rerank" => RankingMode::Rerank,
+            _ => RankingMode::Embedding,
+        }
+    });
+    let include_answer = args.include_answer || cfg.include_answer;
+
     let filters = build_filters(&args);
     let request = SearchRequest {
         query: query.to_string(),
-        max_results: args.max_results,
-        ranking_mode: args.ranking_mode,
-        include_answer: args.include_answer,
+        max_results,
+        ranking_mode,
+        include_answer,
         filters,
     };
 
@@ -42,7 +54,7 @@ pub async fn run(client: &CerulClient, args: SearchArgs) -> Result<()> {
     if args.json {
         output::print_json(&response)?;
     } else {
-        output::print_search_human(&response);
+        output::print_search_human(&response, cfg.images);
     }
 
     Ok(())

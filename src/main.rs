@@ -46,6 +46,8 @@ enum Commands {
     Search(SearchArgs),
     /// Check credit balance, billing period, and rate limits
     Usage(UsageArgs),
+    /// Configure default settings (images, max_results, ranking_mode, etc.)
+    Config(ConfigArgs),
     /// Update cerul to the latest version
     Upgrade,
 }
@@ -61,12 +63,12 @@ pub struct LoginArgs {
 pub struct SearchArgs {
     /// Natural language search query (max 400 chars)
     pub query: String,
-    /// Maximum number of results (1-50)
-    #[arg(long, default_value_t = 5, value_parser = clap::value_parser!(u32).range(1..=50))]
-    pub max_results: u32,
-    /// Ranking mode: embedding or rerank
-    #[arg(long, value_enum, default_value_t = RankingMode::Embedding)]
-    pub ranking_mode: RankingMode,
+    /// Maximum number of results (1-50, default from config)
+    #[arg(long)]
+    pub max_results: Option<u32>,
+    /// Ranking mode: embedding or rerank (default from config)
+    #[arg(long, value_enum)]
+    pub ranking_mode: Option<RankingMode>,
     /// Include AI-generated summary answer (costs 2 credits)
     #[arg(long)]
     pub include_answer: bool,
@@ -95,6 +97,27 @@ pub struct UsageArgs {
     /// Output raw JSON instead of human-readable format
     #[arg(long)]
     pub json: bool,
+}
+
+#[derive(clap::Args, Debug, Clone)]
+pub struct ConfigArgs {
+    #[command(subcommand)]
+    pub action: Option<ConfigAction>,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum ConfigAction {
+    /// Show current configuration
+    List,
+    /// Set a config value (e.g. cerul config set images on)
+    Set {
+        /// Config key
+        key: String,
+        /// Config value
+        value: String,
+    },
+    /// Reset all settings to defaults
+    Reset,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -164,6 +187,12 @@ async fn run() -> Result<()> {
             let client = CerulClient::from_config()?;
             commands::usage::run(&client, args).await?;
         }
+        Commands::Config(args) => match args.action {
+            None => commands::config::run_interactive()?,
+            Some(ConfigAction::List) => commands::config::run_list()?,
+            Some(ConfigAction::Set { key, value }) => commands::config::run_set(&key, &value)?,
+            Some(ConfigAction::Reset) => commands::config::run_reset()?,
+        },
         Commands::Upgrade => commands::upgrade::run().await?,
     }
 
