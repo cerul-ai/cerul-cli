@@ -1,6 +1,10 @@
 <div align="center">
-  <h1>cerul</h1>
-  <p><strong>The video search layer for AI agents — CLI.</strong></p>
+  <br />
+  <a href="https://cerul.ai">
+    <img src="https://raw.githubusercontent.com/cerul-ai/cerul/main/assets/logo.png" alt="Cerul" width="80" />
+  </a>
+  <h1>Cerul CLI</h1>
+  <p><strong>The video search layer for AI agents.</strong></p>
   <p>Give any AI agent the ability to search video. Works with Claude Code, Codex, Cursor, and any tool that can run shell commands.</p>
 
   <p>
