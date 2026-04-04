@@ -1,6 +1,6 @@
 [package]
 name = "cerul"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2021"
 description = "Official Cerul CLI - search video knowledge from your terminal"
 license = "MIT"
@@ -13,9 +13,11 @@ categories = ["command-line-utilities"]
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
+flate2 = "1"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tar = "0.4"
 tokio = { version = "1", features = ["rt", "macros"] }
 
 [profile.release]

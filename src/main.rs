@@ -45,6 +45,8 @@ enum Commands {
     Search(SearchArgs),
     /// Check credit balance, billing period, and rate limits
     Usage(UsageArgs),
+    /// Update cerul to the latest version
+    Upgrade,
 }
 
 #[derive(clap::Args, Debug, Clone)]
@@ -104,6 +106,17 @@ async fn main() {
 async fn run() -> Result<()> {
     let cli = Cli::parse();
 
+    // Check for updates on non-upgrade commands (non-blocking, cached 24h)
+    let is_upgrade = matches!(cli.command, Commands::Upgrade);
+    if !is_upgrade {
+        if let Some(latest) = commands::upgrade::check_update_background().await {
+            eprintln!(
+                "  Update available: v{} -> v{latest}. Run `cerul upgrade` to update.\n",
+                env!("CARGO_PKG_VERSION")
+            );
+        }
+    }
+
     match cli.command {
         Commands::Login(args) => commands::login::run(args.api_key).await?,
         Commands::Logout => commands::login::run_logout()?,
@@ -115,6 +128,7 @@ async fn run() -> Result<()> {
             let client = CerulClient::from_config()?;
             commands::usage::run(&client, args).await?;
         }
+        Commands::Upgrade => commands::upgrade::run().await?,
     }
 
     Ok(())
