@@ -11,10 +11,10 @@ pub async fn run(api_key: Option<String>) -> Result<()> {
         eprintln!();
         eprintln!("  {}", "🔑 Cerul Login".bold());
         eprintln!();
-        eprintln!("  Opening {} ...", "https://cerul.ai/dashboard/api-keys".dimmed());
+        eprintln!("  Opening {} ...", "https://cerul.ai/dashboard".dimmed());
         eprintln!();
 
-        open_browser("https://cerul.ai/dashboard/api-keys");
+        open_browser("https://cerul.ai/dashboard");
 
         config::read_line("  Paste your API key: ")?
     };
