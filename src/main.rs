@@ -27,10 +27,12 @@ use crate::client::CerulClient;
                   \x20 cerul search \"sam altman agi\"          Search indexed videos\n\
                   \x20 cerul usage                            Check your credit balance",
     after_help = "Examples:\n\
-                  \x20 cerul search \"attention mechanism explained\"\n\
-                  \x20 cerul search \"jensen huang\" --speaker \"Jensen Huang\" --max-results 10\n\
-                  \x20 cerul search \"AI safety\" --ranking-mode rerank --include-answer\n\
-                  \x20 cerul search \"scaling laws\" --published-after 2025-01-01 --json\n\n\
+                  \x20 cerul search \"how does attention mechanism work\"\n\
+                  \x20 cerul search \"Jensen Huang\" --speaker \"Jensen Huang\" --max-results 10\n\
+                  \x20 cerul search \"Dario Amodei AI safety\" --ranking-mode rerank --include-answer\n\
+                  \x20 cerul search \"scaling laws\" --published-after 2025-01-01 --json\n\
+                  \x20 cerul search \"what is RLHF\" --include-answer\n\
+                  \x20 cerul search \"Mark Zuckerberg open source\" --source youtube\n\n\
                   Documentation: https://cerul.ai/docs\n\
                   Dashboard:     https://cerul.ai/dashboard"
 )]
@@ -164,8 +166,41 @@ async fn main() {
     }
 }
 
+const EXAMPLE_QUERIES: &[&str] = &[
+    "Sam Altman on AGI timeline",
+    "how does attention mechanism work",
+    "Jensen Huang on AI infrastructure",
+    "Dario Amodei AI safety approach",
+    "scaling laws explained",
+    "Mark Zuckerberg open source AI strategy",
+    "what is chain of thought reasoning",
+    "Andrej Karpathy on LLM training",
+    "Demis Hassabis on protein folding",
+    "Yann LeCun self-supervised learning",
+    "how transformers replaced RNNs",
+    "Satya Nadella on Copilot and AI agents",
+    "Geoffrey Hinton on AI existential risk",
+    "Ilya Sutskever on unsupervised learning",
+    "why retrieval augmented generation works",
+    "Emad Mostaque on open source generative AI",
+    "how diffusion models generate images",
+    "Jim Fan on foundation agents",
+    "Harrison Chase on LangChain and agent frameworks",
+    "what is RLHF and why it matters",
+];
+
+fn pick_example_query() -> &'static str {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let seed = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos() as usize;
+    EXAMPLE_QUERIES[seed % EXAMPLE_QUERIES.len()]
+}
+
 fn print_welcome() {
     let version = env!("CARGO_PKG_VERSION");
+    let example = pick_example_query();
     eprintln!();
     eprintln!(
         "  {} {}",
@@ -180,8 +215,8 @@ fn print_welcome() {
         "cerul login".green()
     );
     eprintln!(
-        "    {}        Search videos",
-        "cerul search \"sam altman agi\"".green()
+        "    {}",
+        format!("cerul search \"{example}\"").green()
     );
     eprintln!(
         "    {}                          Check credits",
