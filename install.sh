@@ -2,7 +2,15 @@
 set -e
 
 REPO="cerul-ai/cerul-cli"
-INSTALL_DIR="${CERUL_INSTALL_DIR:-/usr/local/bin}"
+
+# Default install to ~/.local/bin (no sudo needed, upgrade-friendly)
+if [ -n "$CERUL_INSTALL_DIR" ]; then
+  INSTALL_DIR="$CERUL_INSTALL_DIR"
+elif [ -d "$HOME/.local/bin" ] || mkdir -p "$HOME/.local/bin" 2>/dev/null; then
+  INSTALL_DIR="$HOME/.local/bin"
+else
+  INSTALL_DIR="/usr/local/bin"
+fi
 
 # Detect OS
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -49,4 +57,15 @@ fi
 chmod +x "$INSTALL_DIR/cerul"
 
 echo "Installed cerul v${LATEST} to $INSTALL_DIR/cerul"
+
+# Check if INSTALL_DIR is in PATH
+case ":$PATH:" in
+  *":$INSTALL_DIR:"*) ;;
+  *)
+    echo ""
+    echo "Add this to your shell profile to use cerul:"
+    echo "  export PATH=\"$INSTALL_DIR:\$PATH\""
+    ;;
+esac
+
 "$INSTALL_DIR/cerul" --version

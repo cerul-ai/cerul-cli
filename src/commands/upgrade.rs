@@ -49,8 +49,12 @@ pub async fn run() -> Result<()> {
 
     // Write to temp file next to current exe, then rename (atomic on same filesystem)
     let tmp_path = current_exe.with_extension("tmp");
-    std::fs::write(&tmp_path, &binary)
-        .with_context(|| format!("Failed to write {}", tmp_path.display()))?;
+    std::fs::write(&tmp_path, &binary).with_context(|| {
+        format!(
+            "Permission denied writing to {}.\n\n  Try: sudo cerul upgrade\n  Or reinstall to a user directory: CERUL_INSTALL_DIR=~/.local/bin",
+            tmp_path.display()
+        )
+    })?;
 
     #[cfg(unix)]
     {
