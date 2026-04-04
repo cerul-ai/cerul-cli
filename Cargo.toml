@@ -1,0 +1,25 @@
+[package]
+name = "cerul"
+version = "0.1.0"
+edition = "2021"
+description = "Official Cerul CLI - search video knowledge from your terminal"
+license = "MIT"
+repository = "https://github.com/cerul-ai/cerul-cli"
+homepage = "https://cerul.ai"
+readme = "README.md"
+keywords = ["cerul", "video-search", "cli", "ai-agent"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "macros"] }
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1
+opt-level = "z"
