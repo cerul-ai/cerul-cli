@@ -7,6 +7,7 @@ mod types;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use colored::Colorize;
 use types::RankingMode;
 
 use crate::client::CerulClient;
@@ -98,9 +99,42 @@ pub struct UsageArgs {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
+    // No args → show welcome banner instead of clap help
+    if std::env::args().count() == 1 {
+        print_welcome();
+        return;
+    }
+
     if let Err(err) = run().await {
         error::exit_with_error(&err);
     }
+}
+
+fn print_welcome() {
+    let version = env!("CARGO_PKG_VERSION");
+    eprintln!();
+    eprintln!(
+        "  {} {}",
+        "🔍 cerul".bold(),
+        format!("v{version} — video knowledge search").dimmed()
+    );
+    eprintln!();
+    eprintln!("  {}", "Quick start:".bold());
+    eprintln!(
+        "    {}                          Set up your API key",
+        "cerul login".green()
+    );
+    eprintln!(
+        "    {}        Search videos",
+        "cerul search \"sam altman agi\"".green()
+    );
+    eprintln!(
+        "    {}                          Check credits",
+        "cerul usage".green()
+    );
+    eprintln!();
+    eprintln!("  Run {} for all options.", "cerul --help".dimmed());
+    eprintln!();
 }
 
 async fn run() -> Result<()> {
@@ -111,8 +145,10 @@ async fn run() -> Result<()> {
     if !is_upgrade {
         if let Some(latest) = commands::upgrade::check_update_background().await {
             eprintln!(
-                "  Update available: v{} -> v{latest}. Run `cerul upgrade` to update.\n",
-                env!("CARGO_PKG_VERSION")
+                "  {}  Update available: v{} → v{latest}. Run {} to update.\n",
+                "⬆️".dimmed(),
+                env!("CARGO_PKG_VERSION"),
+                "cerul upgrade".yellow(),
             );
         }
     }

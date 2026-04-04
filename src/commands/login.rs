@@ -1,22 +1,22 @@
 use anyhow::{bail, Result};
+use colored::Colorize;
 
 use crate::client::CerulClient;
 use crate::config;
 
 pub async fn run(api_key: Option<String>) -> Result<()> {
-    // If key provided via flag, use it directly
     let key = if let Some(k) = api_key {
         k
     } else {
-        // Interactive flow
-        eprintln!("Log in to Cerul\n");
-        eprintln!("  1. Go to https://cerul.ai/dashboard/api-keys");
-        eprintln!("  2. Create or copy an API key\n");
+        eprintln!();
+        eprintln!("  {}", "🔑 Cerul Login".bold());
+        eprintln!();
+        eprintln!("  Opening {} ...", "https://cerul.ai/dashboard/api-keys".dimmed());
+        eprintln!();
 
-        // Try to open browser
         open_browser("https://cerul.ai/dashboard/api-keys");
 
-        config::read_line("Paste your API key: ")?
+        config::read_line("  Paste your API key: ")?
     };
 
     if key.is_empty() {
@@ -27,35 +27,50 @@ pub async fn run(api_key: Option<String>) -> Result<()> {
         bail!("Invalid API key format. Keys start with \"cerul_\".");
     }
 
-    // Verify key works
-    eprint!("Verifying...");
+    eprint!("  Verifying... ");
     let client = CerulClient::with_key(key.clone())?;
     let usage = client.usage().await?;
-    eprintln!(" OK\n");
+    eprintln!("{}", "✓".green().bold());
+    eprintln!();
 
-    // Save
     config::save_api_key(&key)?;
 
-    eprintln!("Logged in successfully.");
-    eprintln!("  Tier:              {}", usage.tier);
+    eprintln!("  {}", "✅ Logged in".green().bold());
     eprintln!(
-        "  Credits remaining: {}",
-        usage.credits_remaining
+        "  {:<12}{}",
+        "Plan".dimmed(),
+        usage.tier.bold()
     );
     eprintln!(
-        "  Daily free:        {} / {}",
-        usage.daily_free_remaining, usage.daily_free_limit
+        "  {:<12}{} remaining",
+        "Credits".dimmed(),
+        format!("{}", usage.credits_remaining).green(),
     );
-    eprintln!("\nAPI key saved. You can now use `cerul search`.");
+    eprintln!(
+        "  {:<12}{} / {}",
+        "Daily free".dimmed(),
+        format!("{}", usage.daily_free_remaining).green(),
+        usage.daily_free_limit,
+    );
+    eprintln!();
+    eprintln!(
+        "  You're all set! Try: {}",
+        "cerul search \"sam altman agi\"".green()
+    );
+    eprintln!();
 
     Ok(())
 }
 
 pub fn run_logout() -> Result<()> {
     if config::clear_api_key()? {
-        eprintln!("Logged out. API key removed.");
+        eprintln!();
+        eprintln!("  {} Logged out. API key removed.", "✅".green());
+        eprintln!();
     } else {
-        eprintln!("No saved API key found.");
+        eprintln!();
+        eprintln!("  No saved API key found.");
+        eprintln!();
     }
     Ok(())
 }

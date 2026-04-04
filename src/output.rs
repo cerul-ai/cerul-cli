@@ -1,57 +1,53 @@
 use anyhow::{Context, Result};
+use colored::Colorize;
 use serde::Serialize;
 
 use crate::types::{SearchResponse, UsageResponse};
 
 pub fn print_search_human(response: &SearchResponse) {
     let credit_note = if response.credits_used == 0 {
-        "(free daily search)".to_string()
+        "free daily search".green().to_string()
     } else {
         format!(
-            "({} credit{} used)",
+            "{} credit{} used",
             response.credits_used,
             if response.credits_used == 1 { "" } else { "s" }
         )
     };
 
-    println!(
-        "\n  {} result{} found  {}  |  {} credits remaining\n",
+    eprintln!();
+    eprintln!(
+        "  🔍 {} result{}  ·  {}  ·  {} credits remaining",
         response.results.len(),
         if response.results.len() == 1 { "" } else { "s" },
         credit_note,
         format_number(response.credits_remaining),
     );
-
-    println!("{}", "─".repeat(72));
+    eprintln!();
 
     for (index, result) in response.results.iter().enumerate() {
-        if index > 0 {
-            println!("{}", "─".repeat(72));
-        }
-
-        // Title line
-        println!(
-            "  [{}/{}]  {}",
-            index + 1,
-            response.results.len(),
-            result.title,
+        // Top border + title
+        eprintln!(
+            "  ┌─ {}  {}",
+            format!("[{}]", index + 1).dimmed(),
+            result.title.bold(),
         );
 
         // Metadata line
-        let mut meta_parts = Vec::new();
-        meta_parts.push(format!("Score: {:.0}%", result.score * 100.0));
-        if let Some(rs) = result.rerank_score {
-            meta_parts.push(format!("Rerank: {:.0}%", rs * 100.0));
-        }
-        meta_parts.push(format!(
-            "Time: {} - {}",
+        let mut meta = Vec::new();
+        meta.push(format!(
+            "📊 {}",
+            format!("{}% match", (result.score * 100.0) as u32).green()
+        ));
+        meta.push(format!(
+            "🕐 {} → {}",
             format_timestamp(result.timestamp_start),
             format_timestamp(result.timestamp_end),
         ));
         if let Some(speaker) = &result.speaker {
-            meta_parts.push(format!("Speaker: {speaker}"));
+            meta.push(format!("🎤 {speaker}"));
         }
-        println!("        {}", meta_parts.join("  |  "));
+        eprintln!("  │  {}", meta.join("  ·  ").dimmed());
 
         // Transcript / snippet
         let text = result
@@ -59,63 +55,75 @@ pub fn print_search_human(response: &SearchResponse) {
             .as_deref()
             .unwrap_or(result.snippet.as_str());
         let preview = truncate_preview(text, 280);
-        println!();
-        for line in wrap_text(&preview, 68) {
-            println!("        {line}");
+        eprintln!("  │");
+        for line in wrap_text(&preview, 64) {
+            eprintln!("  │  {line}");
         }
 
         // URL
-        println!();
-        println!("        {}", result.url);
-        println!();
+        eprintln!("  │");
+        eprintln!("  │  {}", format!("🔗 {}", result.url).dimmed());
+
+        // Bottom border
+        eprintln!("  └─");
+        eprintln!();
     }
 
-    println!("{}", "─".repeat(72));
-
     if let Some(answer) = &response.answer {
-        println!();
-        println!("  Answer:");
+        eprintln!("  {} {}", "💡".dimmed(), "Answer".bold());
+        eprintln!();
         for line in wrap_text(answer.trim(), 68) {
-            println!("    {line}");
+            eprintln!("  {line}");
         }
-        println!();
+        eprintln!();
     }
 }
 
 pub fn print_usage_human(response: &UsageResponse) {
-    println!();
-    println!("  Cerul API Usage");
-    println!("  {}", "─".repeat(40));
-    println!(
-        "  Tier:              {}",
-        response.tier
+    eprintln!();
+    eprintln!("  {}", "📊 Cerul Usage".bold());
+    eprintln!();
+    eprintln!(
+        "  {:<12}{}",
+        "Plan".dimmed(),
+        response.tier.bold()
     );
-    println!(
-        "  Credits:           {} used / {} remaining",
+    eprintln!(
+        "  {:<12}{} used · {} remaining",
+        "Credits".dimmed(),
         format_number(response.credits_used),
-        format_number(response.credits_remaining),
+        format_number(response.credits_remaining).green(),
     );
-    println!(
-        "  Wallet balance:    {}",
-        format_number(response.wallet_balance)
+    eprintln!(
+        "  {:<12}{}",
+        "Wallet".dimmed(),
+        format_number(response.wallet_balance),
     );
-    println!(
-        "  Daily free:        {} / {} remaining",
-        format_number(response.daily_free_remaining),
-        format_number(response.daily_free_limit)
+    eprintln!(
+        "  {:<12}{} / {}",
+        "Daily free".dimmed(),
+        format_number(response.daily_free_remaining).green(),
+        format_number(response.daily_free_limit),
     );
-    println!(
-        "  Rate limit:        {} req/sec",
-        format_number(response.rate_limit_per_sec)
+    eprintln!(
+        "  {:<12}{} req/sec",
+        "Rate limit".dimmed(),
+        format_number(response.rate_limit_per_sec),
     );
-    println!(
-        "  Billing period:    {} to {}",
-        response.period_start, response.period_end
+    eprintln!(
+        "  {:<12}{} → {}",
+        "Period".dimmed(),
+        response.period_start,
+        response.period_end,
     );
     if response.billing_hold {
-        println!("  Billing hold:      YES (account under review)");
+        eprintln!(
+            "  {:<12}{}",
+            "Hold".dimmed(),
+            "YES (account under review)".red().bold(),
+        );
     }
-    println!();
+    eprintln!();
 }
 
 pub fn print_json<T>(value: &T) -> Result<()>

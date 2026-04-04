@@ -1,29 +1,44 @@
 use std::env;
 
 use anyhow::{bail, Context, Result};
+use colored::Colorize;
 
 const REPO: &str = "cerul-ai/cerul-cli";
 const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub async fn run() -> Result<()> {
-    eprintln!("Current version: v{CURRENT_VERSION}");
-    eprint!("Checking for updates... ");
+    eprintln!();
+    eprintln!("  {}", "⬆️  Cerul Upgrade".bold());
+    eprintln!();
+    eprint!("  Checking for updates... ");
 
     let latest = fetch_latest_version().await?;
 
     if latest == CURRENT_VERSION {
-        eprintln!("already up to date.");
+        eprintln!("{}", "already up to date.".green());
+        eprintln!();
         return Ok(());
     }
 
-    eprintln!("v{latest} available.\n");
+    eprintln!();
+    eprintln!(
+        "  {:<12}v{}",
+        "Current".dimmed(),
+        CURRENT_VERSION
+    );
+    eprintln!(
+        "  {:<12}v{}",
+        "Latest".dimmed(),
+        latest.green()
+    );
+    eprintln!();
 
     let artifact_name = artifact_for_current_platform()?;
     let url = format!(
         "https://github.com/{REPO}/releases/download/v{latest}/{artifact_name}"
     );
 
-    eprintln!("Downloading {artifact_name}...");
+    eprint!("  Downloading {artifact_name}... ");
     let bytes = download_url(&url).await?;
 
     let current_exe = env::current_exe().context("Cannot determine current executable path")?;
@@ -50,7 +65,10 @@ pub async fn run() -> Result<()> {
         )
     })?;
 
-    eprintln!("Updated to v{latest}.");
+    eprintln!("{}", "✓".green().bold());
+    eprintln!();
+    eprintln!("  {} Updated to v{latest}.", "✅".green());
+    eprintln!();
     Ok(())
 }
 
