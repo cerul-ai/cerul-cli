@@ -5,12 +5,13 @@
   </a>
   <h1>Cerul CLI</h1>
   <p><strong>The video search layer for AI agents.</strong></p>
-  <p>Give any AI agent the ability to search video. Works with Claude Code, Codex, Cursor, and any tool that can run shell commands.</p>
+  <p>Teach your AI agents to see — search by meaning across visual scenes, speech, and on-screen content.</p>
 
   <p>
     <a href="https://cerul.ai/docs"><strong>Docs</strong></a> &middot;
     <a href="https://cerul.ai"><strong>Website</strong></a> &middot;
-    <a href="https://github.com/cerul-ai/cerul"><strong>Main Repo</strong></a>
+    <a href="https://github.com/cerul-ai/cerul"><strong>Main Repo</strong></a> &middot;
+    <a href="https://x.com/cerul_hq"><img src="https://img.shields.io/badge/follow-%40cerul__hq-000?style=flat-square&logo=x" alt="Follow on X" /></a>
   </p>
 
   <p>
@@ -31,7 +32,7 @@
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/cerul-ai/cerul-cli/main/install.sh | bash
+curl -fsSL https://cli.cerul.ai/install.sh | bash
 ```
 
 ## Quick Start
@@ -54,10 +55,11 @@ cerul search "Jensen Huang on AI infrastructure" --json
 
 # Or as part of a multi-step research workflow
 cerul search "scaling laws explained" --speaker "Ilya Sutskever" --json
-cerul search "scaling laws criticism" --json
 ```
 
 Use `--json` for structured output that agents can parse. Without `--json`, results are formatted for humans with inline video frames, clickable links, and color.
+
+> Inline video frame previews are supported in iTerm2, WezTerm, and Kitty. Enable with `cerul config` and toggle **Images** on.
 
 ## Search Options
 
@@ -79,31 +81,28 @@ cerul search "query" --json                   # raw JSON for scripts/agents
 | `cerul search <query>` | Search indexed videos |
 | `cerul usage` | Check credits and rate limits |
 | `cerul login` / `logout` | Authenticate |
-| `cerul config` | Interactive settings (↑↓←→ to navigate) |
+| `cerul config` | Interactive settings |
 | `cerul history` | Browse and re-run past searches |
 | `cerul upgrade` | Self-update to latest version |
 | `cerul completions <shell>` | Shell completions (bash/zsh/fish) |
 
 ## Agent Integration
 
-Add this to your agent's skill or system prompt:
+Install the Cerul skill so your agent can search videos automatically:
 
-```
-When the user asks about video content, talks, or what someone said
-in a presentation, use the cerul CLI:
-
-  cerul search "<query>" --json
-
-Parse the JSON results and cite sources with timestamps and URLs.
+```bash
+npx skills add cerul-ai/cerul
 ```
 
-Or use the [Cerul SKILL.md](https://github.com/cerul-ai/cerul/tree/main/skills/cerul) for automatic agent integration.
+Or point your agent directly at the skill file:
+
+> Install the Cerul video search skill by reading and following https://github.com/cerul-ai/cerul/blob/main/skills/cerul/SKILL.md
 
 ## Links
 
 - [Python SDK](https://pypi.org/project/cerul/) — `pip install cerul`
 - [TypeScript SDK](https://www.npmjs.com/package/cerul) — `npm install cerul`
-- [Main repo](https://github.com/cerul-ai/cerul) — API, docs, skills, remote MCP
+- [Main repo](https://github.com/cerul-ai/cerul) — docs, skills, remote MCP
 
 ## License
 
