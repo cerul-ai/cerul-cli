@@ -1,6 +1,6 @@
 [package]
 name = "cerul"
-version = "0.0.22"
+version = "0.0.23"
 edition = "2021"
 description = "Official Cerul CLI - search video knowledge from your terminal"
 license = "MIT"
