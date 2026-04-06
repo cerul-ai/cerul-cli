@@ -56,6 +56,8 @@ pub struct SearchResult {
     pub duration: u64,
     pub source: String,
     pub speaker: Option<String>,
+    pub published_at: Option<String>,
+    pub language: Option<String>,
     pub timestamp_start: Option<f64>,
     pub timestamp_end: Option<f64>,
 }

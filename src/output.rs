@@ -173,6 +173,11 @@ pub fn print_search_agent(response: &SearchResponse) {
         if let Some(speaker) = &result.speaker {
             meta.push(format!("Speaker: {speaker}"));
         }
+        if let Some(published_at) = &result.published_at {
+            if let Some(date) = published_at.get(..10) {
+                meta.push(format!("Published: {date}"));
+            }
+        }
         if !result.source.is_empty() {
             meta.push(format!("Source: {}", result.source));
         }
