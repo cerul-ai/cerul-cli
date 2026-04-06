@@ -7,6 +7,8 @@ pub async fn run(client: &CerulClient, args: UsageArgs) -> Result<()> {
 
     if args.json {
         output::print_json(&response)?;
+    } else if args.agent {
+        output::print_usage_agent(&response);
     } else {
         output::print_usage_human(&response);
     }

@@ -20,7 +20,8 @@ pub async fn run(client: &CerulClient, args: SearchArgs) -> Result<()> {
     });
     let include_answer = args.include_answer || cfg.include_answer;
     let is_json = args.json;
-    let is_interactive = !is_json && std::io::stderr().is_terminal();
+    let is_agent = args.agent;
+    let is_interactive = !is_json && !is_agent && std::io::stderr().is_terminal();
 
     // First search with the provided query
     let mut query = args.query.clone();
@@ -50,6 +51,11 @@ pub async fn run(client: &CerulClient, args: SearchArgs) -> Result<()> {
 
         if is_json {
             output::print_json(&response)?;
+            return Ok(());
+        }
+
+        if is_agent {
+            output::print_search_agent(&response);
             return Ok(());
         }
 

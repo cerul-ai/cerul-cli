@@ -103,6 +103,9 @@ pub struct SearchArgs {
     /// Output raw JSON instead of human-readable format
     #[arg(long)]
     pub json: bool,
+    /// Output concise markdown for AI agent consumption (no color, no images, compact)
+    #[arg(long)]
+    pub agent: bool,
 }
 
 #[derive(clap::Args, Debug, Clone)]
@@ -110,6 +113,9 @@ pub struct UsageArgs {
     /// Output raw JSON instead of human-readable format
     #[arg(long)]
     pub json: bool,
+    /// Output concise markdown for AI agent consumption
+    #[arg(long)]
+    pub agent: bool,
 }
 
 #[derive(clap::Args, Debug, Clone)]

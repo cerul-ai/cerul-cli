@@ -141,6 +141,72 @@ pub fn print_usage_human(response: &UsageResponse) {
     eprintln!();
 }
 
+pub fn print_search_agent(response: &SearchResponse) {
+    let credit_note = if response.credits_used == 0 {
+        "(free daily search)".to_string()
+    } else {
+        format!(
+            "({} credit{} used)",
+            response.credits_used,
+            if response.credits_used == 1 { "" } else { "s" }
+        )
+    };
+
+    println!(
+        "# {} result{} {} | {} credits remaining\n",
+        response.results.len(),
+        if response.results.len() == 1 { "" } else { "s" },
+        credit_note,
+        format_number(response.credits_remaining),
+    );
+
+    for (index, result) in response.results.iter().enumerate() {
+        println!("## [{}] {}", index + 1, result.title);
+
+        let mut meta = Vec::new();
+        meta.push(format!("Score: {}%", (result.score * 100.0) as u32));
+        meta.push(format!(
+            "Time: {}-{}",
+            format_timestamp(result.timestamp_start),
+            format_timestamp(result.timestamp_end),
+        ));
+        if let Some(speaker) = &result.speaker {
+            meta.push(format!("Speaker: {speaker}"));
+        }
+        if !result.source.is_empty() {
+            meta.push(format!("Source: {}", result.source));
+        }
+        println!("- {}", meta.join(" | "));
+        println!("- URL: {}", result.url);
+
+        let text = result
+            .transcript
+            .as_deref()
+            .unwrap_or(result.snippet.as_str());
+        let preview = truncate_preview(text, 400);
+        println!("- Transcript: {preview}");
+        println!();
+    }
+
+    if let Some(answer) = &response.answer {
+        println!("## Answer\n");
+        println!("{}\n", answer.trim());
+    }
+}
+
+pub fn print_usage_agent(response: &UsageResponse) {
+    println!("# Cerul Usage\n");
+    println!("- Tier: {}", response.tier);
+    println!("- Credits: {} used, {} remaining", format_number(response.credits_used), format_number(response.credits_remaining));
+    println!("- Wallet: {}", format_number(response.wallet_balance));
+    println!("- Daily free: {} / {}", format_number(response.daily_free_remaining), format_number(response.daily_free_limit));
+    println!("- Rate limit: {} req/sec", format_number(response.rate_limit_per_sec));
+    println!("- Period: {} - {}", response.period_start, response.period_end);
+    if response.billing_hold {
+        println!("- Hold: YES (account under review)");
+    }
+}
+
 pub fn print_json<T>(value: &T) -> Result<()>
 where
     T: Serialize,
