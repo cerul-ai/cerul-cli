@@ -4,7 +4,7 @@
     <img src="https://raw.githubusercontent.com/cerul-ai/cerul/main/assets/logo.png" alt="Cerul" width="80" />
   </a>
   <h1>Cerul CLI</h1>
-  <p><strong>The video search layer for AI agents.</strong></p>
+  <p><strong>Where video becomes citable.</strong></p>
   <p>Teach your AI agents to see — search by meaning across visual scenes, speech, and on-screen content.</p>
 
   <p>

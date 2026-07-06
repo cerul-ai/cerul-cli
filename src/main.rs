@@ -18,7 +18,7 @@ use crate::client::CerulClient;
     name = "cerul",
     version,
     disable_version_flag = true,
-    about = "The video search layer for AI agents",
+    about = "Cerul — where video becomes citable",
     long_about = "Cerul CLI — teach your AI agents to see.\n\
                   Search what was said, shown, or presented in tech talks,\n\
                   podcasts, conference presentations, and earnings calls.\n\n\
@@ -216,7 +216,7 @@ fn print_welcome() {
         "🔍 cerul".bold(),
         format!("v{version}").dimmed()
     );
-    eprintln!("  {}", "The video search layer for AI agents.".dimmed());
+    eprintln!("  {}", "Cerul — where video becomes citable.".dimmed());
     eprintln!();
     eprintln!("  {}", "Quick start:".bold());
     eprintln!(
