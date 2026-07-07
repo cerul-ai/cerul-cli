@@ -5,7 +5,7 @@
   </a>
   <h1>Cerul CLI</h1>
   <p><strong>Where video becomes citable.</strong></p>
-  <p>Search by meaning across visual scenes, speech, and on-screen content.</p>
+  <p>The video search API for agents — meaning-based, grounded, timestamped.</p>
 
   <p>
     <a href="https://cerul.ai/docs"><strong>Docs</strong></a> &middot;
