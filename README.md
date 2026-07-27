@@ -1,3 +1,12 @@
+> [!WARNING]
+> **Scheduled for deletion**
+>
+> This legacy repository has been consolidated into
+> [`cerul-ai/cerul`](https://github.com/cerul-ai/cerul) at `apps/cli`. Do not
+> start new features or releases here. It remains temporarily available for
+> historical and release recovery and will be deleted after final consolidation
+> verification.
+
 <div align="center">
   <br />
   <a href="https://cerul.ai">
